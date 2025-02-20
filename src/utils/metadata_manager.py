@@ -47,14 +47,15 @@ class MetadataManager:
         dashboard_name: str,
         mongo_uri: str = "mongodb://localhost:27017",
         db_name: str = "DashboardMetadata",
-    ):
+    ) -> None:
         """
         Initializes the MetadataManager with the dataset and MongoDB configuration.
 
-        :param df: The dataset to be analyzed.
-        :param dashboard_name: Unique name for the dashboard (acts as partition key).
-        :param mongo_uri: MongoDB connection URI.
-        :param db_name: Name of the MongoDB database.
+        Args:
+            df: The dataset to be analyzed.
+            dashboard_name: Unique name for the dashboard (acts as partition key).
+            mongo_uri: MongoDB connection URI.
+            db_name: Name of the MongoDB database.
         """
         self.df = df
         self.dashboard_name = dashboard_name  # Unique partition key
@@ -65,20 +66,23 @@ class MetadataManager:
         # Ensure the dashboard_name is unique using an index
         self.collection.create_index("dashboard_name", unique=True)
 
-    def generate_metadata(self) -> Dict[str, Any]:
+    def generate_metadata(self, summary: Dict[str, Any]) -> Dict[str, Any]:
         """
         Generates metadata for the dataset.
+        
+        Args:
+            summary (Dict): Data validation summary containing missing values and duplicates.
 
-        :return: A dictionary containing metadata.
+        Returns: 
+            (Dict[str, Any]) - A dictionary containing metadata.
         """
         _logger.info("Generating metadata for dashboard: %s", self.dashboard_name)
 
         metadata_list = []
         for col in self.df.columns:
-            sample_values = self.df[col].dropna().sample(min(5, len(self.df))).tolist()
+            sample_values = self.df[col].dropna().sample(5).tolist()
             metadata_list.append(
                 {
-                    "dashboard_name": self.dashboard_name,  # Partition Key
                     "column_name": col,
                     "data_type": str(self.df[col].dtype),
                     "sample_values": sample_values,
@@ -88,6 +92,7 @@ class MetadataManager:
         self.metadata = {
             "dashboard_name": self.dashboard_name,
             "columns": metadata_list,
+            "data_summary": summary
         }
         _logger.info("Metadata generated.")
         return self.metadata
@@ -109,12 +114,18 @@ class MetadataManager:
                 self.dashboard_name,
             )
 
-    def retrieve_metadata(self, dashboard_name: str) -> pd.DataFrame:
+    def retrieve_metadata(self, dashboard_name: str) -> Dict[str, Any]:
         """
         Retrieves metadata from MongoDB for a given dashboard.
 
-        :param dashboard_name: Unique name of the dashboard.
-        :return: A pandas DataFrame containing metadata.
+        Args:
+            dashboard_name (str): Unique name of the dashboard.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing metadata if found, or None.
+
+        Raises:
+            None
         """
         result = self.collection.find_one(
             {"dashboard_name": dashboard_name}, {"_id": 0, "columns": 1}
@@ -123,5 +134,6 @@ class MetadataManager:
         if not result:
             _logger.warning("No metadata found for dashboard: %s", dashboard_name)
             return None
+
         _logger.info("Metadata retrieved for dashboard: %s", dashboard_name)
         return result

@@ -2,3 +2,7 @@ python-dotenv==1.0.1
 pandas==2.2.3
 pyarrow==19.0.0
 openpyxl==3.1.5
+pymongo==4.11.1
+boto3==1.36.23
+SQLAlchemy==2.0.38
+azure_storage_blob==12.24.1

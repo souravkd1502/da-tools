@@ -68,7 +68,7 @@ class DataValidation:
         """
         duplicate_count = self.df.duplicated().sum()
         _logger.info("Duplicate rows check completed. Found %d duplicates.", duplicate_count)
-        return duplicate_count
+        return int(duplicate_count)
     
     def check_data_types(self) -> Dict[str, str]:
         """
