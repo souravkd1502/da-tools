@@ -10,6 +10,7 @@ sys.path.append("./")
 sys.path.append("../")
 
 # Importing necessary libraries and modules
+import os
 import logging
 from dotenv import load_dotenv
 
@@ -35,78 +36,77 @@ class Planner:
     """
 
     response_format = {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "dashboard",
-            "strict": True,
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "The title of the dashboard.",
-                    },
-                    "data_source": {
-                        "type": "string",
-                        "description": "The source of the data used in the dashboard.",
-                    },
-                    "charts": {
-                        "type": "array",
-                        "description": "A collection of charts displayed on the dashboard.",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "type": {
-                                    "type": "string",
-                                    "description": "The type of the chart (e.g., bar, line).",
-                                },
-                                "x_axis": {
-                                    "type": "string",
-                                    "description": "The variable represented on the x-axis.",
-                                },
-                                "y_axis": {
-                                    "type": "string",
-                                    "description": "The variable represented on the y-axis.",
-                                },
+        "name": "dashboard",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "The title of the dashboard.",
+                },
+                "data_source": {
+                    "type": "string",
+                    "description": "The source of the data used in the dashboard.",
+                },
+                "charts": {
+                    "type": "array",
+                    "description": "A collection of charts displayed on the dashboard.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "description": "The type of the chart (e.g., bar, line).",
                             },
-                            "required": ["type", "x_axis", "y_axis"],
-                            "additionalProperties": False,
+                            "x_axis": {
+                                "type": "string",
+                                "description": "The variable represented on the x-axis.",
+                            },
+                            "y_axis": {
+                                "type": "string",
+                                "description": "The variable represented on the y-axis.",
+                            },
                         },
-                    },
-                    "filters": {
-                        "type": "array",
-                        "description": "A collection of filters available for the dashboard.",
-                        "items": {"type": "string", "description": "A filter option."},
-                    },
-                    "metrics": {
-                        "type": "array",
-                        "description": "A collection of metrics displayed on the dashboard.",
-                        "items": {"type": "string", "description": "A metric option."},
+                        "required": ["type", "x_axis", "y_axis"],
+                        "additionalProperties": False,
                     },
                 },
-                "required": ["title", "data_source", "charts", "filters", "metrics"],
-                "additionalProperties": False,
+                "filters": {
+                    "type": "array",
+                    "description": "A collection of filters available for the dashboard.",
+                    "items": {"type": "string", "description": "A filter option."},
+                },
+                "metrics": {
+                    "type": "array",
+                    "description": "A collection of metrics displayed on the dashboard.",
+                    "items": {"type": "string", "description": "A metric option."},
+                },
             },
+            "required": ["title", "data_source", "charts", "filters", "metrics"],
+            "additionalProperties": False,
         },
     }
 
-    def __init__(self, openai_key: str) -> None:
+    def __init__(self, openai_key: str = None) -> None:
         """
         Initializes the Planner class with the OpenAI API key.
 
         Args:
             openai_key (str): The OpenAI API key.
         """
-        self.openai_key = openai_key
+        self.openai_key = openai_key or os.getenv("OPENAI_API_KEY")
         self.openai = OpenAIChatHandler(self.openai_key)
         _logger.info("Planner initialized...")
 
-    def generate_plan(self, schema_inference: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_plan(
+        self, schema_inference: str, metadata: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Generates a plan for the given task using schema inference and metadata.
-        The plan is a JSON object that contains information about the task, 
+        The plan is a JSON object that contains information about the task,
         such as the title, data source, charts, filters, and metrics
-        
+
         This function creates a JSON object that outlines the task's details,
         such as the title, data source, charts, filters, and metrics to be used.
 
@@ -117,13 +117,7 @@ class Planner:
         Returns:
             Dict[str, Any]: The generated plan as a JSON object.
         """
-        # Log the start of the planning process
-        _logger.info("Planning and executing task.")
-        
-        # Placeholder for the plan generation logic
-        # You would typically process the schema_inference and metadata here
-        # to construct the plan structure.
-        
+
         SYSTEM_PROMPT = f"""
         You are provided with a dataset that includes various structured data fields. 
         Your task is to create a detailed and actionable plan based on this data. 
@@ -155,15 +149,18 @@ class Planner:
         Ensure your final plan includes clear objectives, actionable items, timelines (if applicable), and any contingencies or recommendations.
         Output both your step-by-step reasoning (chain-of-thought) and the final detailed plan. Your response should clearly 
         document how the insights from the data informed each element of the plan.
-        """
         
+        **IMPORTANT** : DO NOT CREATE NEW COLUMN NAMES OR CHANGE THE EXISTING COLUMN NAMES FOR THE EXECUTIONER PLANS.
+        """
+
         _logger.info("Generating plan...")
         # Call the OpenAI API to generate the plan
         response = self.openai.chat_completion(
             prompt=schema_inference,
             system_prompt=SYSTEM_PROMPT,
             max_tokens=4096,
-            response_format=self.response_format,
+            response_format="json_schema",
+            is_structured_output=True,
+            json_schema=self.response_format,
         )
         return response
-
